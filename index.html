@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Monday Morning Timesheet Check — Ocean Kinetics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Design language deliberately matched to ai-seminar.html — engineering-drawing
+     sheets. Palette and type live here in :root; one comment block per sheet. */
+  :root{
+    --bg:      #06192e;
+    --panel:   #0b2440;
+    --panel-2: #0e2b4c;
+    --cobalt:  #004b99;
+    --cyan:    #29abe2;
+    --lime:    #7ab92b;
+    --red:     #cf2e2e;
+    --amber:   #e0a02c;
+    --claude:  #d97757;   /* Anthropic coral — used only for Claude things */
+    --ink:     #e8f0f8;
+    --muted:   #8aa5bf;
+    --rule:    rgba(41,171,226,.28);
+    --grid:    rgba(41,171,226,.05);
+    --disp: "Barlow Condensed","Arial Narrow",sans-serif;
+    --body: "Barlow","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --mono: "IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;width:100%}
+  html{background:var(--bg)}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--body);
+    overflow:hidden;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;
+    background:
+      linear-gradient(var(--grid) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:44px 44px;
+  }
+
+  /* ---- drawing-sheet frame -------------------------------------- */
+  .slide{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;
+    padding:2.2vh 2.2vw;
+    opacity:0;visibility:hidden;
+    transform:translateX(14px);
+    transition:opacity .32s ease,transform .32s ease,visibility 0s .32s;
+  }
+  .slide.active{
+    opacity:1;visibility:visible;transform:none;
+    transition:opacity .32s ease,transform .32s ease,visibility 0s;
+  }
+  @media (prefers-reduced-motion:reduce){
+    .slide,.slide.active,.reveal{transition:none;transform:none}
+  }
+  .sheet{
+    flex:1;display:flex;flex-direction:column;min-height:0;
+    border:1px solid var(--rule);
+    position:relative;
+  }
+  .sheet::before,.sheet::after{
+    content:"";position:absolute;width:14px;height:14px;pointer-events:none;
+  }
+  .sheet::before{top:-1px;left:-1px;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan)}
+  .sheet::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan)}
+
+  .content{
+    flex:1;min-height:0;
+    padding:3.4vh 4vw 2.4vh;
+    display:flex;flex-direction:column;justify-content:center;
+  }
+
+  /* ---- title block (bottom strip) ------------------------------- */
+  .titleblock{
+    display:grid;
+    grid-template-columns:1fr auto auto auto;
+    border-top:1px solid var(--rule);
+    font-family:var(--mono);
+    font-size:clamp(9px,1vw,11.5px);
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .titleblock>div{
+    padding:.7em 1.2em;
+    border-left:1px solid var(--rule);
+    white-space:nowrap;
+  }
+  .titleblock>div:first-child{border-left:none}
+  .titleblock b{color:var(--cyan);font-weight:500;display:block;font-size:.82em;margin-bottom:.25em}
+  .titleblock span{color:var(--ink)}
+
+  /* ---- shared typography ---------------------------------------- */
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:clamp(10px,1.05vw,12.5px);
+    letter-spacing:.22em;text-transform:uppercase;
+    color:var(--cyan);
+    margin-bottom:1.4vh;
+  }
+  .eyebrow::before{content:"— ";color:var(--rule)}
+  h2{
+    font-family:var(--disp);font-weight:600;text-transform:uppercase;
+    font-size:clamp(28px,4vw,58px);
+    line-height:.96;margin-bottom:1.6vh;
+  }
+  h2 em{font-style:normal;color:var(--cyan)}
+  .lede{
+    font-size:clamp(14px,1.5vw,20px);
+    line-height:1.45;color:var(--ink);
+    max-width:76ch;
+  }
+  .lede strong{color:var(--cyan);font-weight:600}
+  .muted{color:var(--muted)}
+  .footnote{
+    margin-top:1.8vh;font-family:var(--mono);
+    font-size:clamp(9px,.98vw,12px);letter-spacing:.08em;color:var(--muted);
+  }
+  .footnote strong{color:var(--lime);font-weight:500}
+  .footnote em{font-style:normal;color:var(--claude)}
+
+  /* ---- spreadsheet mock (used on sheets 1 and 6) ----------------- */
+  .sheets2{display:grid;grid-template-columns:1fr 1fr;gap:1.6vw;margin-top:2.4vh;align-items:start}
+  .pane{display:flex;flex-direction:column;min-width:0}
+  .panelabel{
+    font-family:var(--mono);font-size:clamp(9px,.98vw,12px);
+    letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);
+    margin-bottom:.9vh;
+  }
+  .panelabel b{color:var(--ink);font-weight:500}
+  .xl{
+    background:#fff;color:#1f1e1d;border:1px solid #cfccc4;
+    display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:0 4px 18px rgba(0,0,0,.28);
+  }
+  .xl-bar{
+    display:flex;align-items:center;gap:.6em;
+    background:#f2f0ea;border-bottom:1px solid #d9d6ce;
+    padding:.5em .8em;
+    font-family:var(--mono);font-size:clamp(9px,.95vw,11.5px);
+    color:#6b665e;letter-spacing:.04em;
+  }
+  .xl-bar .fname{color:#1f1e1d;font-weight:500}
+  .xl-bar .dot{width:8px;height:8px;border-radius:50%;background:#3f7d3f;flex:none}
+  .xl table{border-collapse:collapse;width:100%;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .xl th,.xl td{
+    border:1px solid #e4e1da;
+    padding:.36em .5em;
+    font-size:clamp(9.5px,1.02vw,13px);
+    font-weight:400;text-align:right;white-space:nowrap;
+  }
+  .xl thead.cols th{
+    background:#eceae4;color:#a9a49b;text-align:center;font-weight:400;
+    font-size:clamp(8px,.85vw,10.5px);padding:.18em .5em;
+  }
+  .xl thead.hdr th{background:#f2f0ea;color:#514c45;font-weight:600}
+  .xl td.rh,.xl th.rh{
+    background:#eceae4;color:#a9a49b;text-align:center;
+    font-size:clamp(8px,.85vw,10.5px);width:2.1em;
+  }
+  .xl td.nm,.xl th.nm{text-align:left}
+  .xl tr.tot td{background:#f7f6f2;font-weight:600;border-top:2px solid #b9b5ac}
+  .xl td.gap{color:#b8b3aa}
+  .xl-tabs{
+    display:flex;align-items:flex-end;gap:2px;
+    background:#eceae4;border-top:1px solid #d9d6ce;padding:.32em .5em 0;
+  }
+  .xl-tabs span{
+    font-family:var(--mono);font-size:clamp(8px,.85vw,10.5px);
+    padding:.3em .7em;color:#8a857c;border:1px solid transparent;
+  }
+  .xl-tabs span.on{
+    background:#fff;color:#1f1e1d;border:1px solid #d9d6ce;border-bottom-color:#fff;
+    font-weight:500;
+  }
+  .xl-more{
+    font-family:var(--mono);font-size:clamp(8.5px,.9vw,11px);
+    color:#8a857c;padding:.45em .8em;background:#faf9f5;border-top:1px solid #e4e1da;
+  }
+  .cap{
+    margin-top:.9vh;font-size:clamp(11.5px,1.2vw,15px);
+    line-height:1.4;color:var(--muted);
+  }
+  .cap b{color:var(--ink);font-weight:500}
+
+  /* ---- claude.ai mock (sheets 2, 3, 4) --------------------------- */
+  .cui{
+    background:#faf9f5;color:#1f1e1d;border-radius:10px;
+    padding:2.4vh 1.6vw;font-family:var(--body);
+    display:flex;flex-direction:column;
+    box-shadow:0 6px 26px rgba(0,0,0,.3);
+  }
+  .cui-welcome{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(15px,1.6vw,22px);text-align:center;
+    margin-bottom:1.8vh;color:#1f1e1d;
+  }
+  .cui-welcome .star{color:var(--claude);margin-right:.35em}
+  .cui-card{
+    background:#fff;border:1px solid #e5e2da;border-radius:12px;
+    box-shadow:0 2px 10px rgba(31,30,29,.07);
+    padding:1.5vh 1.1vw 1.1vh;
+  }
+  .cui-files{display:flex;gap:.5em;margin-bottom:1.2vh;flex-wrap:wrap}
+  .cui-file{
+    display:inline-flex;align-items:center;gap:.45em;
+    border:1px solid #e5e2da;background:#f7f6f2;border-radius:7px;
+    padding:.32em .7em;font-family:var(--mono);
+    font-size:clamp(9px,.95vw,11.5px);color:#514c45;
+  }
+  .cui-file i{
+    font-style:normal;width:1.15em;height:1.15em;border-radius:3px;
+    background:#3f7d3f;color:#fff;font-size:.62em;font-weight:600;
+    display:inline-flex;align-items:center;justify-content:center;
+  }
+  .cui-card .q{font-size:clamp(12px,1.28vw,17px);line-height:1.45;color:#1f1e1d}
+  .cui-card .q .cursor{
+    display:inline-block;width:1.5px;height:1em;background:#1f1e1d;
+    vertical-align:-.13em;margin-left:1px;animation:blink 1.1s step-end infinite;
+  }
+  @keyframes blink{50%{opacity:0}}
+  .cui-bar{
+    display:flex;align-items:center;gap:.7em;margin-top:1.6vh;
+    color:#8a857c;font-size:clamp(9.5px,1vw,12.5px);font-family:var(--body);
+  }
+  .cui-toggle{
+    display:inline-flex;border:1px solid #e5e2da;border-radius:7px;
+    padding:2px;background:#f2f0ea;
+  }
+  .cui-toggle b{
+    background:#fff;border-radius:5px;padding:.1em .6em;
+    font-weight:500;color:#1f1e1d;box-shadow:0 1px 2px rgba(31,30,29,.12);
+  }
+  .cui-toggle span{padding:.1em .6em}
+  .cui-model{margin-left:auto}
+  .cui-send{
+    width:1.7em;height:1.7em;border-radius:6px;background:var(--claude);
+    color:#fff;display:inline-flex;align-items:center;justify-content:center;flex:none;
+  }
+  .cui-bubble{
+    align-self:flex-end;background:#f0eee6;border-radius:12px;
+    padding:.5em .9em;font-size:clamp(11px,1.14vw,14.5px);color:#1f1e1d;
+    margin-bottom:1.4vh;max-width:88%;line-height:1.4;
+  }
+  .cui-thought{
+    font-size:clamp(10px,1.05vw,13px);color:#9b968c;margin-bottom:1.4vh;
+  }
+  .cui-ans{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(11px,1.18vw,15px);line-height:1.5;color:#1f1e1d;
+  }
+  .cui-ans+.cui-ans{margin-top:.9vh}
+  .cui-ans strong{font-weight:700}
+
+  /* ---- sheet 2 : the ask ----------------------------------------- */
+  .s-ask .cui{margin-top:2.6vh;max-width:1000px;width:100%;align-self:center}
+  .asknotes{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:1.4vw;
+    margin-top:2.6vh;max-width:1000px;width:100%;align-self:center;
+  }
+  .asknote{border-top:2px solid var(--claude);padding-top:1.1vh}
+  .asknote b{
+    display:block;font-family:var(--mono);font-size:clamp(8.5px,.92vw,11px);
+    letter-spacing:.18em;text-transform:uppercase;color:var(--claude);
+    margin-bottom:.5vh;font-weight:500;
+  }
+  .asknote p{font-size:clamp(11.5px,1.2vw,15.5px);line-height:1.45;color:var(--muted)}
+  .asknote p strong{color:var(--ink);font-weight:500}
+  /* the honest cost of doing it by hand — sets up sheet 4 */
+  .catch{
+    display:flex;gap:1.2vw;align-items:baseline;
+    margin-top:2.4vh;padding:1.3vh 1.3vw;
+    max-width:1000px;width:100%;align-self:center;
+    background:var(--panel);border:1px solid var(--rule);
+    border-left:3px solid var(--amber);
+  }
+  .catch b{
+    flex:none;font-family:var(--mono);font-size:clamp(8.5px,.92vw,11px);
+    letter-spacing:.18em;text-transform:uppercase;color:var(--amber);font-weight:500;
+  }
+  .catch p{font-size:clamp(11.5px,1.22vw,16px);line-height:1.45;color:var(--muted)}
+  .catch p strong{color:var(--ink);font-weight:600}
+
+  /* ---- sheet 3 : the answer -------------------------------------- */
+  .s-ans .content{padding-top:2.6vh}
+  .s-ans .cui{margin-top:1.6vh}
+  .restab{width:100%;border-collapse:collapse;font-family:var(--mono);
+    font-variant-numeric:tabular-nums;margin-bottom:1.6vh}
+  .restab th,.restab td{
+    padding:.4em .6em;font-size:clamp(10px,1.06vw,13.5px);
+    text-align:right;border-bottom:1px solid #e5e2da;white-space:nowrap;
+  }
+  .restab th{
+    color:#8a857c;font-weight:500;font-size:clamp(8.5px,.9vw,11px);
+    letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid #cfccc4;
+  }
+  .restab td.nm,.restab th.nm{text-align:left;font-family:var(--body);font-weight:500}
+  .restab td.d{font-weight:600}
+  .restab td.ok{color:#3f7d3f}
+  .restab td.over{color:#b3261e}
+  .restab td.under{color:#a86a1f}
+  .restab tr.tot td{border-top:2px solid #cfccc4;border-bottom:none;font-weight:700;padding-top:.55em}
+  .restab .flagname{color:#b3261e}
+  .anslist{list-style:none}
+  .anslist li{
+    position:relative;padding-left:1.5em;margin-bottom:.9vh;
+    font-family:var(--body);font-size:clamp(11.5px,1.22vw,15.5px);
+    line-height:1.45;color:#1f1e1d;
+  }
+  .anslist li:last-child{margin-bottom:0}
+  .anslist li::before{
+    position:absolute;left:0;top:-.02em;font-family:var(--mono);font-weight:600;
+    font-size:.95em;
+  }
+  .anslist li.flag::before{content:"!";color:#b3261e}
+  .anslist li.note::before{content:"?";color:#a86a1f}
+  .anslist li.good::before{content:"\2713";color:#3f7d3f}
+  .anslist li b{font-weight:600}
+
+  /* ---- sheet 4 : the routine ------------------------------------- */
+  .s-routine .cui{margin-top:2.4vh;max-width:1020px;width:100%;align-self:center}
+  .s-routine .asknotes{margin-top:2.4vh;max-width:1020px}
+
+  /* ---- sheet 5 : what claude does -------------------------------- */
+  .steps{
+    display:grid;grid-template-columns:repeat(5,1fr);gap:1.1vw;margin-top:3vh;
+  }
+  .step{
+    background:var(--panel);border:1px solid var(--rule);
+    border-top:3px solid var(--claude);
+    padding:2vh 1.1vw;display:flex;flex-direction:column;
+  }
+  .step .n{
+    font-family:var(--mono);font-size:clamp(9px,.98vw,12px);
+    letter-spacing:.18em;color:var(--claude);margin-bottom:1.2vh;
+  }
+  .step h3{
+    font-family:var(--disp);font-weight:600;text-transform:uppercase;
+    font-size:clamp(16px,1.85vw,26px);line-height:1;margin-bottom:.9vh;
+  }
+  .step p{font-size:clamp(11px,1.16vw,15px);line-height:1.45;color:var(--muted)}
+  .step p strong{color:var(--ink);font-weight:500}
+  .step.hero{border-top-color:var(--lime)}
+  .step.hero .n{color:var(--lime)}
+
+  /* ---- sheet 6 : the inbox --------------------------------------- */
+  .mail{
+    display:grid;grid-template-columns:.85fr 1.4fr;gap:0;margin-top:2.4vh;
+    background:#faf9f5;border:1px solid #cfccc4;color:#1f1e1d;
+    box-shadow:0 6px 26px rgba(0,0,0,.3);min-height:0;
+  }
+  .mlist{border-right:1px solid #ddd9d1;display:flex;flex-direction:column}
+  .mlist-h{
+    font-family:var(--mono);font-size:clamp(8.5px,.9vw,11px);
+    letter-spacing:.14em;text-transform:uppercase;color:#8a857c;
+    padding:.9em 1em;border-bottom:1px solid #ddd9d1;background:#f2f0ea;
+  }
+  .mrow{
+    padding:1em;border-bottom:1px solid #e8e5de;
+    display:flex;flex-direction:column;gap:.2em;
+  }
+  .mrow .top{display:flex;align-items:baseline;gap:.6em}
+  .mrow .from{font-size:clamp(11px,1.16vw,15px);font-weight:600;color:#1f1e1d}
+  .mrow .time{
+    margin-left:auto;font-family:var(--mono);
+    font-size:clamp(8.5px,.9vw,11px);color:#8a857c;flex:none;
+  }
+  .mrow .subj{font-size:clamp(10.5px,1.1vw,14px);color:#514c45;line-height:1.35}
+  .mrow .prev{font-size:clamp(10px,1.04vw,13px);color:#9b968c;line-height:1.35}
+  .mrow.sel{background:#fff;border-left:3px solid var(--claude);padding-left:calc(1em - 3px)}
+  .mrow.sel .from{color:var(--claude)}
+  .mrow.read .from{font-weight:400;color:#6b665e}
+  .mbody{padding:1.6vh 1.5vw;display:flex;flex-direction:column;min-width:0}
+  .mbody .subject{
+    font-family:var(--disp);font-weight:600;text-transform:uppercase;
+    font-size:clamp(17px,2vw,29px);line-height:1.02;color:#1f1e1d;margin-bottom:.5vh;
+  }
+  .mbody .meta{
+    font-family:var(--mono);font-size:clamp(8.5px,.9vw,11px);
+    color:#8a857c;letter-spacing:.06em;
+    padding-bottom:1.2vh;margin-bottom:1.4vh;border-bottom:1px solid #e5e2da;
+  }
+  .mbody .meta b{color:var(--claude);font-weight:500}
+  .mbody p{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(10.5px,1.14vw,14.5px);line-height:1.5;color:#1f1e1d;
+    margin-bottom:1.1vh;
+  }
+  .mbody p.hd{
+    font-family:var(--mono);font-size:clamp(8.5px,.9vw,11px);
+    letter-spacing:.14em;text-transform:uppercase;color:#8a857c;
+    margin-bottom:.5vh;
+  }
+  .mbody ul{list-style:none;margin-bottom:1.2vh}
+  .mbody ul li{
+    position:relative;padding-left:1.4em;margin-bottom:.45vh;
+    font-family:var(--body);font-size:clamp(10.5px,1.12vw,14.5px);
+    line-height:1.42;color:#1f1e1d;
+  }
+  .mbody ul li::before{
+    position:absolute;left:0;font-family:var(--mono);font-weight:600;font-size:.92em;
+  }
+  .mbody ul.bad li::before{content:"!";color:#b3261e}
+  .mbody ul.good li::before{content:"\2713";color:#3f7d3f}
+  .mbody ul li b{font-weight:600}
+  .mbody .attach{
+    margin-top:auto;padding-top:1.2vh;border-top:1px solid #e5e2da;
+    display:flex;gap:.5em;flex-wrap:wrap;
+  }
+
+  /* ---- navigation ------------------------------------------------ */
+  .nav{
+    position:fixed;right:2.2vw;bottom:calc(2.2vh + 52px);z-index:10;
+    display:flex;gap:8px;
+  }
+  .nav button{
+    font-family:var(--mono);font-size:16px;
+    width:42px;height:42px;cursor:pointer;
+    background:var(--panel);color:var(--cyan);
+    border:1px solid var(--rule);
+  }
+  .nav button:hover{background:var(--panel-2)}
+  .nav button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .hint{
+    position:fixed;left:2.2vw;bottom:calc(2.2vh + 58px);
+    font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);opacity:.6;
+  }
+
+  /* ---- staged reveals: each advance shows the next .reveal -------- */
+  .reveal{opacity:0;transform:translateY(12px);pointer-events:none;
+    transition:opacity .38s ease,transform .38s ease}
+  .reveal.shown{opacity:1;transform:none;pointer-events:auto}
+
+  @media (max-width:900px){
+    .sheets2,.steps,.asknotes,.mail{grid-template-columns:1fr}
+    .content{padding:3vh 6vw 2vh;overflow-y:auto;justify-content:flex-start}
+    .mlist{border-right:none;border-bottom:1px solid #ddd9d1}
+    .hint{display:none}
+  }
+  @media print{
+    body{overflow:visible;background:var(--bg)}
+    .slide{position:static;opacity:1;visibility:visible;transform:none;height:100vh;page-break-after:always}
+    .nav,.hint{display:none}
+    .reveal{opacity:1 !important;transform:none !important}
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== SHT 1 — THE TWO RECORDS ==================== -->
+<section class="slide s-two active" aria-label="Two records of the same week">
+  <div class="sheet">
+    <div class="content">
+      <p class="eyebrow">Sheet 1 &middot; Where we&rsquo;re starting</p>
+      <h2>Two records of the <em>same week</em></h2>
+      <p class="lede">Five men, one week. On the left, the hours they wrote down.
+        On the right, every time the door scanner saw their face. Both records
+        already exist &mdash; <strong>nobody has ever put them side by side.</strong></p>
+
+      <div class="sheets2">
+        <div class="pane">
+          <p class="panelabel">Entered by hand &middot; <b>Tara</b></p>
+          <div class="xl">
+            <div class="xl-bar">
+              <span class="dot" aria-hidden="true"></span>
+              <span class="fname">Timesheets w-e 28-08-26.xlsx</span>
+              <span>&mdash; Excel</span>
+            </div>
+            <table>
+              <thead class="cols">
+                <tr><th class="rh"></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th><th>G</th></tr>
+              </thead>
+              <thead class="hdr">
+                <tr><th class="rh">1</th><th class="nm">Name</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Total</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="rh">2</td><td class="nm">Magnus Tulloch</td><td>9.5</td><td>9.5</td><td>9.5</td><td>11.5</td><td>6.0</td><td>46.0</td></tr>
+                <tr><td class="rh">3</td><td class="nm">Brian Sinclair</td><td>9.5</td><td>9.5</td><td>9.5</td><td>9.5</td><td>6.0</td><td>44.0</td></tr>
+                <tr><td class="rh">4</td><td class="nm">Ewen Leask</td><td>9.5</td><td>9.5</td><td>9.5</td><td>9.5</td><td>6.0</td><td>44.0</td></tr>
+                <tr><td class="rh">5</td><td class="nm">Davie Irvine</td><td>9.5</td><td>9.5</td><td>9.5</td><td>9.5</td><td>6.0</td><td>44.0</td></tr>
+                <tr><td class="rh">6</td><td class="nm">Kevin Nicolson</td><td>9.5</td><td>9.5</td><td>9.5</td><td>9.5</td><td>6.0</td><td>44.0</td></tr>
+                <tr class="tot"><td class="rh">7</td><td class="nm">Total</td><td>47.5</td><td>47.5</td><td>47.5</td><td>49.5</td><td>30.0</td><td>222.0</td></tr>
+              </tbody>
+            </table>
+            <div class="xl-tabs">
+              <span class="on">w-e 28 Aug</span><span>w-e 21 Aug</span><span>w-e 14 Aug</span>
+            </div>
+          </div>
+          <p class="cap">One line per man, in round numbers, off the paper slips.
+            <b>Everyone works 7 till 5</b> &mdash; so that&rsquo;s what gets written.</p>
+        </div>
+
+        <div class="pane">
+          <p class="panelabel">Recorded automatically &middot; <b>Door scanner</b></p>
+          <div class="xl">
+            <div class="xl-bar">
+              <span class="dot" aria-hidden="true"></span>
+              <span class="fname">door-scan-export-2026-08.csv</span>
+              <span>&mdash; 24 rows</span>
+            </div>
+            <table>
+              <thead class="cols">
+                <tr><th class="rh"></th><th>A</th><th>B</th><th>C</th><th>D</th></tr>
+              </thead>
+              <thead class="hdr">
+                <tr><th class="rh">1</th><th class="nm">Date</th><th class="nm">Name</th><th>Scan in</th><th>Scan out</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="rh">2</td><td class="nm">24/08/2026</td><td class="nm">Magnus Tulloch</td><td>06:52</td><td>16:56</td></tr>
+                <tr><td class="rh">3</td><td class="nm">24/08/2026</td><td class="nm">Brian Sinclair</td><td>06:54</td><td>17:04</td></tr>
+                <tr><td class="rh">4</td><td class="nm">24/08/2026</td><td class="nm">Ewen Leask</td><td>07:38</td><td>16:41</td></tr>
+                <tr><td class="rh">5</td><td class="nm">24/08/2026</td><td class="nm">Davie Irvine</td><td>06:57</td><td>16:59</td></tr>
+                <tr><td class="rh">6</td><td class="nm">24/08/2026</td><td class="nm">Kevin Nicolson</td><td>06:56</td><td>16:58</td></tr>
+                <tr><td class="rh">7</td><td class="nm">25/08/2026</td><td class="nm">Magnus Tulloch</td><td>06:58</td><td>17:01</td></tr>
+                <tr><td class="rh">8</td><td class="nm">25/08/2026</td><td class="nm">Brian Sinclair</td><td>06:56</td><td>17:02</td></tr>
+                <tr><td class="rh">9</td><td class="nm">25/08/2026</td><td class="nm">Ewen Leask</td><td>07:44</td><td>16:36</td></tr>
+              </tbody>
+            </table>
+            <p class="xl-more">&hellip; 16 more rows, to Fri 28/08/2026</p>
+            <div class="xl-tabs">
+              <span class="on">door-scan-export</span>
+            </div>
+          </div>
+          <p class="cap">One line per face, to the minute. <b>Recorded whether anyone
+            looks at it or not</b> &mdash; and nobody ever does.</p>
+        </div>
+      </div>
+
+      <p class="footnote">Illustrative example &middot; names and times are made up
+        &mdash; the <em>shape</em> of the two files is the point</p>
+    </div>
+    <div class="titleblock">
+      <div><b>Title</b><span>Two records of the same week</span></div>
+      <div><b>Client</b><span>Ocean Kinetics Ltd</span></div>
+      <div><b>Sheet</b><span>1 of 6</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SHT 2 — THE ASK ==================== -->
+<section class="slide s-ask" aria-label="Just ask the question">
+  <div class="sheet">
+    <div class="content">
+      <p class="eyebrow">Sheet 2 &middot; The slow way &mdash; one week at a time</p>
+      <h2>Just <em>ask</em> the question</h2>
+      <p class="lede">Drag both files in. Type what you want in the words you&rsquo;d
+        use to ask a colleague. <strong>No formulas, no lookups, no macros</strong>
+        &mdash; and nothing to build first.</p>
+
+      <div class="cui reveal">
+        <p class="cui-welcome"><span class="star">&#10033;</span>Good morning, Tara</p>
+        <div class="cui-card">
+          <div class="cui-files">
+            <span class="cui-file"><i>X</i>Timesheets w-e 28-08-26.xlsx</span>
+            <span class="cui-file"><i>X</i>door-scan-export-2026-08.csv</span>
+          </div>
+          <p class="q">Here&rsquo;s the timesheet I typed up for last week and the export
+            from the door scanner for the same five men. Do the hours they wrote down
+            match the hours they actually scanned in for? Take half an hour off each
+            full day for dinner. Show me anyone more than half an hour out either way,
+            and tell me if anything&rsquo;s missing.<span class="cursor" aria-hidden="true"></span></p>
+          <div class="cui-bar">
+            <span>+</span>
+            <span class="cui-toggle"><b>Chat</b><span>Cowork</span></span>
+            <span class="cui-model">Opus 5 &middot; High</span>
+            <span class="cui-send">&uarr;</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="asknotes reveal">
+        <div class="asknote">
+          <b>You don&rsquo;t format the question</b>
+          <p>Long, rambling, <strong>in your own words</strong>. Exactly how you&rsquo;d
+            say it across the office.</p>
+        </div>
+        <div class="asknote">
+          <b>You set the rules</b>
+          <p>Half an hour for dinner. Half an hour of tolerance.
+            <strong>Your rules, not its guesses.</strong></p>
+        </div>
+        <div class="asknote">
+          <b>You ask for the gaps too</b>
+          <p>&ldquo;Tell me if anything&rsquo;s missing&rdquo; is the important half.
+            <strong>A blank is not a zero.</strong></p>
+        </div>
+      </div>
+
+      <div class="catch reveal">
+        <b>The catch</b>
+        <p>Nothing wrong with any of that &mdash; it took under a minute. But
+          <strong>you</strong> have to remember it&rsquo;s Monday,
+          <strong>you</strong> have to go and find both files, and
+          <strong>you</strong> have to type it again. Fifty-two times a year, on the
+          morning you&rsquo;re busiest. Miss a week and nobody notices.</p>
+      </div>
+    </div>
+    <div class="titleblock">
+      <div><b>Title</b><span>Just ask the question &mdash; by hand</span></div>
+      <div><b>Client</b><span>Ocean Kinetics Ltd</span></div>
+      <div><b>Sheet</b><span>2 of 6</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SHT 3 — THE ANSWER ==================== -->
+<section class="slide s-ans" aria-label="The answer">
+  <div class="sheet">
+    <div class="content">
+      <p class="eyebrow">Sheet 3 &middot; About thirty seconds later</p>
+      <h2>The <em>answer</em></h2>
+
+      <div class="cui reveal">
+        <p class="cui-bubble">Do the hours they wrote down match the hours they
+          actually scanned in for?</p>
+        <p class="cui-thought">Matched 5 names across 2 files &middot; totalled 24 scan
+          pairs &middot; deducted breaks &middot; flagged 1 missing record</p>
+        <table class="restab">
+          <thead>
+            <tr>
+              <th class="nm">Name</th><th>Written down</th><th>Actually scanned</th>
+              <th>Difference</th><th class="nm">&nbsp;</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="nm">Magnus Tulloch</td><td>46.0</td><td>46.2</td><td class="d ok">+0.2</td><td class="nm">Agrees</td></tr>
+            <tr><td class="nm">Brian Sinclair</td><td>44.0</td><td>44.7</td><td class="d under">+0.7</td><td class="nm">Slightly under-claimed</td></tr>
+            <tr><td class="nm flagname">Ewen Leask</td><td>44.0</td><td>38.6</td><td class="d over">&minus;5.4</td><td class="nm">Over by 5.4 h &mdash; every day</td></tr>
+            <tr><td class="nm flagname">Davie Irvine</td><td>44.0</td><td>38.1</td><td class="d over">&minus;5.9</td><td class="nm">Friday scan missing</td></tr>
+            <tr><td class="nm">Kevin Nicolson</td><td>44.0</td><td>44.1</td><td class="d ok">+0.1</td><td class="nm">Agrees</td></tr>
+            <tr class="tot"><td class="nm">Total</td><td>222.0</td><td>211.7</td><td class="d">&minus;10.3</td><td class="nm">&nbsp;</td></tr>
+          </tbody>
+        </table>
+        <ul class="anslist">
+          <li class="flag"><b>Ewen Leask is the only real discrepancy &mdash; 5.4 hours
+            over.</b> He wrote 07:00 to 17:00 every day, but scanned in at 07:38, 07:44,
+            07:31, 07:52 and 07:41, and out before 16:50 on four of the five. About an
+            hour a day, every day this week. Nothing missing and nothing odd in the
+            data &mdash; the pattern is just consistent.</li>
+          <li class="note"><b>Davie Irvine has no scan at all on Friday</b>, but 6 hours
+            are claimed. Monday to Thursday he matches to within 6 minutes, so this looks
+            like a missing record rather than a discrepancy &mdash; he may well have been
+            on a job away from the door. Worth asking him before it reaches payroll.</li>
+          <li class="good"><b>Magnus Tulloch and Kevin Nicolson both agree</b> to within
+            0.2 hours, and Magnus&rsquo;s Thursday callout checks out &mdash; 11.5 hours
+            claimed, scanned out at 18:58.</li>
+          <li class="good"><b>Brian Sinclair has under-claimed 0.7 hours</b> &mdash; in a
+            few minutes early, out a few minutes late, and still wrote the standard shift.
+            He&rsquo;s owed that, not the other way round.</li>
+        </ul>
+      </div>
+
+      <p class="footnote reveal">Most of it agrees &mdash; <strong>the job is finding the
+        one that doesn&rsquo;t</strong>, and telling that apart from a missed scan.</p>
+    </div>
+    <div class="titleblock">
+      <div><b>Title</b><span>The answer</span></div>
+      <div><b>Client</b><span>Ocean Kinetics Ltd</span></div>
+      <div><b>Sheet</b><span>3 of 6</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SHT 4 — THE ROUTINE ==================== -->
+<section class="slide s-routine" aria-label="Ask once, get it every week">
+  <div class="sheet">
+    <div class="content">
+      <p class="eyebrow">Sheet 4 &middot; The automatic way</p>
+      <h2>Ask once. Get it <em>every week.</em></h2>
+      <p class="lede">That was useful &mdash; but you had to remember to do it, find both
+        files, and type the question again. So don&rsquo;t ask the question.
+        <strong>Ask for the routine.</strong></p>
+
+      <div class="cui reveal">
+        <div class="cui-card">
+          <p class="q">Every Monday at 07:00, take last week&rsquo;s timesheet and the
+            door-scanner export out of the shared folder and do that same comparison.
+            Email me the differences before I get in &mdash; I start at seven, so I want
+            it sitting there when I take my coat off. Flag anyone more than half an hour
+            out either way, and anyone with a scan missing. If it all matches, still send
+            it and just say so. If one of the files isn&rsquo;t there, tell me
+            &mdash; don&rsquo;t guess.<span class="cursor" aria-hidden="true"></span></p>
+          <div class="cui-bar">
+            <span>+</span>
+            <span class="cui-toggle"><b>Chat</b><span>Cowork</span></span>
+            <span class="cui-model">Opus 5 &middot; High</span>
+            <span class="cui-send">&uarr;</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="asknotes reveal">
+        <div class="asknote">
+          <b>When</b>
+          <p><strong>Monday, 07:00.</strong> You say it in words &mdash; not in a
+            scheduling screen with boxes to tick.</p>
+        </div>
+        <div class="asknote">
+          <b>What</b>
+          <p>The same job as sheet 3. <strong>Written down once</strong> and reused every
+            week from then on.</p>
+        </div>
+        <div class="asknote">
+          <b>What if it can&rsquo;t</b>
+          <p>Missing file, missing scan, nothing to report &mdash;
+            <strong>you still get told.</strong> Silence is the enemy.</p>
+        </div>
+      </div>
+    </div>
+    <div class="titleblock">
+      <div><b>Title</b><span>Ask once, get it every week</span></div>
+      <div><b>Client</b><span>Ocean Kinetics Ltd</span></div>
+      <div><b>Sheet</b><span>4 of 6</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SHT 5 — WHAT IT THEN DOES ==================== -->
+<section class="slide s-steps" aria-label="What Claude does with that">
+  <div class="sheet">
+    <div class="content">
+      <p class="eyebrow">Sheet 5 &middot; What happens while you&rsquo;re driving in</p>
+      <h2>What it does with that</h2>
+      <p class="lede">Nobody opens anything. Nobody clicks a button. That one paragraph
+        is now a standing instruction, and this is the whole of it:</p>
+
+      <div class="steps reveal">
+        <div class="step">
+          <span class="n">01</span>
+          <h3>Wakes up</h3>
+          <p><strong>Monday, 06:40.</strong> On its own. Your laptop can be shut and in
+            the boot.</p>
+        </div>
+        <div class="step">
+          <span class="n">02</span>
+          <h3>Fetches</h3>
+          <p>Last week&rsquo;s <strong>timesheet</strong> and last week&rsquo;s
+            <strong>scan export</strong>, out of the shared folder.</p>
+        </div>
+        <div class="step">
+          <span class="n">03</span>
+          <h3>Does the sums</h3>
+          <p>Matches the names, adds up every scan pair, <strong>takes the dinner
+            breaks off</strong>, compares.</p>
+        </div>
+        <div class="step">
+          <span class="n">04</span>
+          <h3>Writes it up</h3>
+          <p>Plain English, <strong>worst first</strong>. Missing records kept separate
+            from real differences.</p>
+        </div>
+        <div class="step hero">
+          <span class="n">05</span>
+          <h3>Emails you</h3>
+          <p>Straight to your inbox. <strong>Before 07:00</strong>, every Monday, until
+            you tell it to stop.</p>
+        </div>
+      </div>
+
+      <p class="footnote reveal">Set up <strong>once</strong>. The only thing that
+        changes week to week is the two files. <em>If they&rsquo;re not there, it says so
+        rather than inventing numbers.</em></p>
+    </div>
+    <div class="titleblock">
+      <div><b>Title</b><span>What it does with that</span></div>
+      <div><b>Client</b><span>Ocean Kinetics Ltd</span></div>
+      <div><b>Sheet</b><span>5 of 6</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SHT 6 — MONDAY 06:42 ==================== -->
+<section class="slide s-inbox" aria-label="Monday 06:42">
+  <div class="sheet">
+    <div class="content">
+      <p class="eyebrow">Sheet 6 &middot; Monday morning, before the kettle</p>
+      <h2>Monday, <em>06:42</em></h2>
+
+      <div class="mail reveal">
+        <div class="mlist">
+          <p class="mlist-h">Inbox &mdash; Tara &middot; Mon 31 Aug</p>
+          <div class="mrow sel">
+            <div class="top"><span class="from">Claude</span><span class="time">06:42</span></div>
+            <p class="subj">Timesheet check &mdash; week to Fri 28 Aug</p>
+            <p class="prev">Morning. Mostly clean &mdash; one man 5.4 hours over, and one Friday scan missing&hellip;</p>
+          </div>
+          <div class="mrow read">
+            <div class="top"><span class="from">Gofor Vehicle Leasing</span><span class="time">Sun 21:14</span></div>
+            <p class="subj">Re: SV73 TGF &mdash; service booking</p>
+          </div>
+          <div class="mrow read">
+            <div class="top"><span class="from">Stores</span><span class="time">Fri 16:48</span></div>
+            <p class="subj">PO 0000025565 &mdash; delivery note attached</p>
+          </div>
+          <div class="mrow read">
+            <div class="top"><span class="from">Claude</span><span class="time">24 Aug</span></div>
+            <p class="subj">Timesheet check &mdash; week to Fri 21 Aug</p>
+          </div>
+          <div class="mrow read">
+            <div class="top"><span class="from">Claude</span><span class="time">17 Aug</span></div>
+            <p class="subj">Timesheet check &mdash; week to Fri 14 Aug</p>
+          </div>
+          <div class="mrow read">
+            <div class="top"><span class="from">Payroll</span><span class="time">14 Aug</span></div>
+            <p class="subj">August run &mdash; cut-off Wednesday</p>
+          </div>
+        </div>
+
+        <div class="mbody">
+          <p class="subject">Timesheet check &mdash; week to Fri 28 Aug</p>
+          <p class="meta">From <b>Claude</b> &middot; Mon 31 Aug 2026, 06:42 &middot; 1 attachment</p>
+          <p>Morning. Five men last week: <strong>222.0 hours written down, 211.7 hours
+            on the door scanner.</strong> Mostly clean &mdash; three agree to within 0.7
+            of an hour, and Magnus&rsquo;s Thursday callout is confirmed (scanned out
+            18:58). Two need you.</p>
+          <p class="hd">One real discrepancy</p>
+          <ul class="bad">
+            <li><b>Ewen Leask &mdash; 5.4 hours over.</b> Wrote 07:00&ndash;17:00 all week;
+              scanned in 07:38, 07:44, 07:31, 07:52, 07:41 and left before 16:50 on four
+              days. Roughly an hour a day, consistently. Third week running &mdash; it was
+              4.8 hours over on the week to 21 Aug.</li>
+          </ul>
+          <p class="hd">One missing record &mdash; not a discrepancy</p>
+          <ul class="bad">
+            <li><b>Davie Irvine</b> &mdash; 6.0 hours claimed on Friday, no scan at all
+              that day. Mon&ndash;Thu he matches to within 6 minutes, so this reads as a
+              gap in the scanner data. Worth a word before it goes to payroll.</li>
+          </ul>
+          <p class="hd">And one the other way</p>
+          <ul class="good">
+            <li><b>Brian Sinclair</b> &mdash; 0.7 hours under-claimed. In a few minutes
+              early, out a few minutes late, wrote the standard shift anyway.</li>
+          </ul>
+          <p>Same time next Monday unless you tell me otherwise.</p>
+          <div class="attach">
+            <span class="cui-file"><i>X</i>timesheet-check-w-e-28-08-26.xlsx</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="footnote reveal">Nobody asked for this on Monday morning &mdash;
+        it was asked for <strong>once</strong>, in a paragraph, weeks ago.
+        <em>The report was written while the office was still dark.</em></p>
+    </div>
+    <div class="titleblock">
+      <div><b>Title</b><span>Monday, 06:42</span></div>
+      <div><b>Client</b><span>Ocean Kinetics Ltd</span></div>
+      <div><b>Sheet</b><span>6 of 6</span></div>
+    </div>
+  </div>
+</section>
+
+<p class="hint">&larr; &rarr; to navigate</p>
+<div class="nav">
+  <button type="button" id="prev" aria-label="Previous">&larr;</button>
+  <button type="button" id="next" aria-label="Next">&rarr;</button>
+</div>
+
+<script>
+  // Staged reveals: every element marked .reveal in the markup appears on its own
+  // advance, in document order. A slide with no .reveal shows in full at once
+  // (sheet 1 — both spreadsheets are meant to be up on screen from the start).
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0, stage = 0;
+
+  function reveals(n){
+    return Array.prototype.slice.call(slides[n].querySelectorAll('.reveal'));
+  }
+  function setStage(n, s){
+    var r = reveals(n);
+    stage = Math.max(0, Math.min(r.length, s));
+    r.forEach(function(el, k){ el.classList.toggle('shown', k < stage); });
+  }
+  function show(n, s){
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    if (n !== i){
+      slides[i].classList.remove('active');
+      i = n;
+      slides[i].classList.add('active');
+    }
+    setStage(i, s);
+  }
+  function next(){
+    if (stage < reveals(i).length){ setStage(i, stage + 1); return; }
+    if (i < slides.length - 1) show(i + 1, 0);
+  }
+  function back(){
+    if (stage > 0){ setStage(i, stage - 1); return; }
+    if (i > 0) show(i - 1, reveals(i - 1).length);
+  }
+
+  setStage(0, 0);
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', back);
+  document.addEventListener('click', function(e){
+    if (e.target.closest('#prev, #next, a')) return;
+    next();
+  });
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); back(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown'){ e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp'){ e.preventDefault(); back(); }
+    else if (e.key === 'Home') show(0, 0);
+    else if (e.key === 'End') show(slides.length - 1, reveals(slides.length - 1).length);
+  });
+</script>
+</body>
+</html>
